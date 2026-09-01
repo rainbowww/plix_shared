@@ -477,24 +477,26 @@ export function Step6Thumbnail({
               </p>
 
               {/* 이미지 생성 바로가기 — 새 창으로 열기(설치 불필요) */}
-              <div className="flex flex-wrap items-center gap-2 pt-1">
-                <span className="text-[11px] font-mono-neo font-extrabold text-[#555555] uppercase">이미지 만들러 가기</span>
-                <button
-                  onClick={() => handleLaunch('chatgpt')}
-                  title="ChatGPT 새 창에 프롬프트가 자동 입력·전송됩니다 (로그인 필요)"
-                  className="px-3 py-1.5 bg-[#111111] hover:bg-[#333] text-white border-2 border-[#111111] text-xs font-mono-neo font-extrabold shadow-[2px_2px_0_#00ffca] flex items-center gap-1.5 cursor-pointer"
-                >
-                  <ExternalLink className="w-3.5 h-3.5" />
-                  <span>ChatGPT 새 창 (자동 입력)</span>
-                </button>
-                <button
-                  onClick={() => handleLaunch('gemini')}
-                  title="Gemini 새 창을 열고 프롬프트를 복사합니다. 붙여넣기(Ctrl+V) 후 Enter"
-                  className="px-3 py-1.5 bg-[#4285F4] hover:bg-[#2f6fe0] text-white border-2 border-[#111111] text-xs font-mono-neo font-extrabold shadow-[2px_2px_0_#111111] flex items-center gap-1.5 cursor-pointer"
-                >
-                  <ExternalLink className="w-3.5 h-3.5" />
-                  <span>Gemini 새 창 (복사·붙여넣기)</span>
-                </button>
+              <div className="pt-1">
+                <span className="block mb-2 text-[11px] font-mono-neo font-extrabold text-[#555555] uppercase">이미지 생성 바로가기</span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={() => handleLaunch('chatgpt')}
+                    title="ChatGPT 새 창에 프롬프트가 자동 입력·전송됩니다 (로그인 필요)"
+                    className="px-3 py-1.5 bg-[#111111] hover:bg-[#333] text-white border-2 border-[#111111] text-xs font-mono-neo font-extrabold shadow-[2px_2px_0_#00ffca] flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    <span>ChatGPT 새 창</span>
+                  </button>
+                  <button
+                    onClick={() => handleLaunch('gemini')}
+                    title="Gemini 새 창을 열고 프롬프트를 복사합니다. 붙여넣기(Ctrl+V) 후 Enter"
+                    className="px-3 py-1.5 bg-[#4285F4] hover:bg-[#2f6fe0] text-white border-2 border-[#111111] text-xs font-mono-neo font-extrabold shadow-[2px_2px_0_#111111] flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    <span>Gemini 새 창</span>
+                  </button>
+                </div>
               </div>
 
               <div className="text-[11px] text-[#555555] font-medium flex items-center gap-1">
