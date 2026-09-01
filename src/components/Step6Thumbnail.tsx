@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Concept, ThumbnailConfig, ThumbnailCopy, ThumbnailPromptData } from '../types';
 import { copyToClipboard } from '../utils/helpers';
-import { launchImageGeneration, isBridgeInstalled } from '../utils/imageBridge';
+import { openImageChat } from '../utils/imageBridge';
 import {
   Image as ImageIcon,
   Sparkles,
@@ -334,22 +334,18 @@ export function Step6Thumbnail({
     }
   };
 
-  const [launching, setLaunching] = useState<null | 'gemini' | 'chatgpt'>(null);
   const handleLaunch = async (platform: 'gemini' | 'chatgpt') => {
-    if (!promptData?.prompt || launching) return;
-    const name = platform === 'gemini' ? 'Gemini' : 'ChatGPT';
-    setLaunching(platform);
-    try {
-      const r = await launchImageGeneration(platform, promptData.prompt);
-      if (r.mode === 'auto' && r.ok) {
-        onShowToast(`${name} 새 대화에 프롬프트를 입력하고 이미지 생성을 시작했습니다.`, 'success');
-      } else if (r.mode === 'auto' && !r.ok) {
-        onShowToast(`${name} 자동 실행에 실패해 프롬프트를 복사하고 새 탭을 열었습니다. 붙여넣기(Ctrl+V) 후 전송하세요.`, 'info');
-      } else {
-        onShowToast(`확장 미설치 — 프롬프트를 복사하고 ${name}를 새 탭으로 열었습니다. 붙여넣기(Ctrl+V) 후 전송하세요.`, 'info');
-      }
-    } finally {
-      setLaunching(null);
+    if (!promptData?.prompt) return;
+    const r = await openImageChat(platform, promptData.prompt);
+    if (platform === 'chatgpt' && r.prefilled) {
+      onShowToast('ChatGPT 새 창에 프롬프트가 입력·전송됩니다. (로그인 상태여야 함)', 'success');
+    } else {
+      onShowToast(
+        r.copied
+          ? 'Gemini 새 창을 열고 프롬프트를 복사했습니다. 붙여넣기(Ctrl+V) 후 Enter 하세요.'
+          : 'Gemini 새 창을 열었습니다. 프롬프트를 복사해 붙여넣으세요.',
+        'info'
+      );
     }
   };
 
@@ -480,30 +476,25 @@ export function Step6Thumbnail({
                 {promptData.prompt}
               </p>
 
-              {/* 이미지 생성 바로가기 */}
+              {/* 이미지 생성 바로가기 — 새 창으로 열기(설치 불필요) */}
               <div className="flex flex-wrap items-center gap-2 pt-1">
-                <span className="text-[11px] font-mono-neo font-extrabold text-[#555555] uppercase">이미지 생성 바로가기</span>
+                <span className="text-[11px] font-mono-neo font-extrabold text-[#555555] uppercase">이미지 만들러 가기</span>
                 <button
                   onClick={() => handleLaunch('chatgpt')}
-                  disabled={!!launching}
-                  className="px-3 py-1.5 bg-[#111111] hover:bg-[#333] text-white border-2 border-[#111111] text-xs font-mono-neo font-extrabold shadow-[2px_2px_0_#00ffca] flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  title="ChatGPT 새 창에 프롬프트가 자동 입력·전송됩니다 (로그인 필요)"
+                  className="px-3 py-1.5 bg-[#111111] hover:bg-[#333] text-white border-2 border-[#111111] text-xs font-mono-neo font-extrabold shadow-[2px_2px_0_#00ffca] flex items-center gap-1.5 cursor-pointer"
                 >
                   <ExternalLink className="w-3.5 h-3.5" />
-                  <span>{launching === 'chatgpt' ? '실행 중…' : 'ChatGPT로 생성'}</span>
+                  <span>ChatGPT 새 창 (자동 입력)</span>
                 </button>
                 <button
                   onClick={() => handleLaunch('gemini')}
-                  disabled={!!launching}
-                  className="px-3 py-1.5 bg-[#4285F4] hover:bg-[#2f6fe0] text-white border-2 border-[#111111] text-xs font-mono-neo font-extrabold shadow-[2px_2px_0_#111111] flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  title="Gemini 새 창을 열고 프롬프트를 복사합니다. 붙여넣기(Ctrl+V) 후 Enter"
+                  className="px-3 py-1.5 bg-[#4285F4] hover:bg-[#2f6fe0] text-white border-2 border-[#111111] text-xs font-mono-neo font-extrabold shadow-[2px_2px_0_#111111] flex items-center gap-1.5 cursor-pointer"
                 >
                   <ExternalLink className="w-3.5 h-3.5" />
-                  <span>{launching === 'gemini' ? '실행 중…' : 'Gemini로 생성'}</span>
+                  <span>Gemini 새 창 (복사·붙여넣기)</span>
                 </button>
-                {!isBridgeInstalled() && (
-                  <span className="text-[11px] text-[#999] font-medium">
-                    (PLIX Bridge 확장 설치 시 자동 입력·전송 / 미설치 시 복사+새 탭)
-                  </span>
-                )}
               </div>
 
               <div className="text-[11px] text-[#555555] font-medium flex items-center gap-1">
