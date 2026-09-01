@@ -436,13 +436,24 @@ export function Step6Thumbnail({
                   <Sparkles className="w-4 h-4 text-[#ff477e]" />
                   <h3 className="text-sm font-mono-neo font-extrabold text-[#111111] uppercase">Pass A: Imagen 영문 프롬프트 (90~140단어)</h3>
                 </div>
-                <button
-                  onClick={handleCopyPrompt}
-                  className="px-3 py-1 bg-white hover:bg-[#ffd166] border-2 border-[#111111] text-xs font-mono-neo font-bold text-[#111111] shadow-[2px_2px_0_#111111] flex items-center gap-1.5 cursor-pointer"
-                >
-                  {copiedPrompt ? <Check className="w-3.5 h-3.5 text-[#ff477e]" /> : <Copy className="w-3.5 h-3.5" />}
-                  <span>{copiedPrompt ? '복사됨' : '프롬프트 복사'}</span>
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={onGeneratePromptAndImage}
+                    disabled={isLoading}
+                    title="같은 컨셉으로 프롬프트를 새로 생성합니다"
+                    className="px-3 py-1 bg-white hover:bg-[#00ffca] border-2 border-[#111111] text-xs font-mono-neo font-bold text-[#111111] shadow-[2px_2px_0_#111111] flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+                    <span>{isLoading ? '재생성 중' : '프롬프트 재생성'}</span>
+                  </button>
+                  <button
+                    onClick={handleCopyPrompt}
+                    className="px-3 py-1 bg-white hover:bg-[#ffd166] border-2 border-[#111111] text-xs font-mono-neo font-bold text-[#111111] shadow-[2px_2px_0_#111111] flex items-center gap-1.5 cursor-pointer"
+                  >
+                    {copiedPrompt ? <Check className="w-3.5 h-3.5 text-[#ff477e]" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copiedPrompt ? '복사됨' : '프롬프트 복사'}</span>
+                  </button>
+                </div>
               </div>
               <p className="p-3.5 rounded-xl bg-[#fffbf2] border-2 border-[#111111] text-xs font-mono-neo text-[#111111] font-medium leading-relaxed select-all">
                 {promptData.prompt}
