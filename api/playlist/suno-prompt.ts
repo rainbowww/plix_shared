@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { generateContentWithRetry, Type } from '../../lib/generate.js';
+import { generateContentWithRetry, Type, NoProviderKeyError } from '../../lib/generate.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
@@ -36,6 +36,6 @@ Suno AI 최적화 프롬프트 팩을 생성하라.`;
     res.json(parsed);
   } catch (error: any) {
     console.error('Error generating Suno prompts:', error);
-    res.status(500).json({ error: error.message || 'Suno 프롬프트 생성에 실패했습니다.' });
+    res.status(error instanceof NoProviderKeyError ? 400 : 500).json({ error: error.message || 'Suno 프롬프트 생성에 실패했습니다.' });
   }
 }

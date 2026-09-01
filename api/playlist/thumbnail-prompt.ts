@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { generateContentWithRetry, Type } from '../../lib/generate.js';
+import { generateContentWithRetry, Type, NoProviderKeyError } from '../../lib/generate.js';
 import { WORKFLOW } from '../../lib/workflow.js';
 
 // Step-6 썸네일 프롬프트 — 서버 정본(workflow.json steps.thumbnail_prompt)을 그대로 적용한다.
@@ -215,6 +215,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   } catch (error: any) {
     console.error('Error generating thumbnail prompt:', error);
-    res.status(500).json({ error: error.message || '썸네일 프롬프트 생성에 실패했습니다.' });
+    res.status(error instanceof NoProviderKeyError ? 400 : 500).json({ error: error.message || '썸네일 프롬프트 생성에 실패했습니다.' });
   }
 }

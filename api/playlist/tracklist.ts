@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { generateContentWithRetry, Type } from '../../lib/generate.js';
+import { generateContentWithRetry, Type, NoProviderKeyError } from '../../lib/generate.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
@@ -55,6 +55,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.json(parsed);
   } catch (error: any) {
     console.error('Error generating tracklist:', error);
-    res.status(500).json({ error: error.message || '트랙리스트 생성에 실패했습니다.' });
+    res.status(error instanceof NoProviderKeyError ? 400 : 500).json({ error: error.message || '트랙리스트 생성에 실패했습니다.' });
   }
 }
