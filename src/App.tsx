@@ -33,7 +33,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { Footer } from './components/Footer';
 import { Toast } from './components/Toast';
 import { downloadTextFile, formatDuration } from './utils/helpers';
-import { I18N, DEFAULT_PROVIDERS } from './utils/constants';
+import { I18N, DEFAULT_PROVIDERS, GENRE_PRESETS } from './utils/constants';
 import { saveProviderKeys, loadProviderKeys } from './utils/secureStore';
 
 const DEFAULT_CONCEPT: Concept = {
@@ -75,6 +75,13 @@ const DEFAULT_SETTINGS: AppSettings = {
   showMonitor: true,
   providers: DEFAULT_PROVIDERS.map((p) => ({ ...p })),
 };
+
+// 현재 컨셉의 장르 슬롯 키(lofi·pop·…·custom). 스냅샷을 장르별 1칸으로 관리한다.
+function genreIdOfConcept(c: { genre?: string; genreCustom?: string }): string {
+  if (c.genreCustom && c.genreCustom.trim()) return 'custom';
+  const p = GENRE_PRESETS.find((g) => g.nameKo === c.genre || g.nameEn === c.genre);
+  return p ? p.id : 'custom';
+}
 
 const STORAGE_KEY = 'ai_playlist_creator_state_v3';
 const SETTINGS_KEY = 'ai_playlist_creator_settings_v3';
@@ -234,8 +241,10 @@ export default function App() {
     const now = new Date();
     const timeFormatted = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
 
+    const genreId = genreIdOfConcept(concept);
     const newSnapshot: SnapshotItem = {
       id: `snap_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+      genreId,
       timestamp: Date.now(),
       timeFormatted,
       tag: tag || (language === 'ko' ? `Step ${currentStep} 작업 상태` : `Step ${currentStep} state`),
@@ -245,8 +254,8 @@ export default function App() {
       settings,
     };
 
-    // Update local list (FIFO max 20)
-    const updatedLocal = [newSnapshot, ...snapshots.filter((s) => s.id !== newSnapshot.id)].slice(0, 20);
+    // 장르별 1칸: 같은 장르 슬롯을 덮어쓰고, 12칸(장르 11 + 커스텀 1)으로 제한.
+    const updatedLocal = [newSnapshot, ...snapshots.filter((s) => (s.genreId || 'custom') !== genreId)].slice(0, 12);
     setSnapshots(updatedLocal);
     localStorage.setItem(SNAPSHOTS_KEY, JSON.stringify(updatedLocal));
 
@@ -993,7 +1002,12 @@ ${uploadKit?.tags?.join(', ') || '미생성'}
           onOpenSnapshots={() => setIsSnapshotModalOpen(true)}
           onQuickSaveSnapshot={handleQuickSaveSnapshot}
           snapshotCount={snapshots.length}
-          onAutoGenerateAll={handleAutoGenerateAll}
+          onAutoGenerateAll={() => {
+            // 매번 랜덤 장르로 시작 (커스텀 제외 11개 중 무작위)
+            const pool = GENRE_PRESETS.filter((g) => g.id !== 'custom');
+            const pick = pool[Math.floor(Math.random() * pool.length)];
+            handleSelectGenrePreset(pick, true);
+          }}
           isAutoGenerating={isAutoGenerating}
           autoGenStatusText={autoGenStatusText}
           onExportAllTxt={handleExportAllTxt}

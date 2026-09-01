@@ -166,6 +166,7 @@ export interface ProjectState {
 // 🛡️ Snapshot & Rollback Data Models
 export interface SnapshotItem {
   id: string;
+  genreId?: string; // 장르별 1칸 저장 키 (lofi·pop·…·custom). 같은 장르 재저장 시 덮어씀.
   timestamp: number; // Date.now()
   timeFormatted: string; // "2026-08-19 15:56:12"
   tag: string; // e.g. "Step 3 트랙리스트 생성 완료", "[자동 백업] 전체 생성 전"

@@ -100,7 +100,7 @@ export function Header({
             <RotateCcw className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">{isKo ? '↩ 복구' : '↩ RESTORE'}</span>
             <span className="px-1 py-0.2 bg-[#111111] text-white text-[10px] font-mono-neo font-bold">
-              {snapshotCount}/3
+              {snapshotCount}/12
             </span>
           </button>
         </div>
