@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { generateContentWithRetry, Type } from '../../lib/generate';
-import { WORKFLOW } from '../../lib/workflow';
+import { generateContentWithRetry, Type } from '../../lib/generate.js';
+import { WORKFLOW } from '../../lib/workflow.js';
 
 // Step-6 썸네일 프롬프트 — 서버 정본(workflow.json steps.thumbnail_prompt)을 그대로 적용한다.
 // 무료·유료 키 불문 동일 규칙. 규칙 미통과 시 재생성 → 그래도 실패하면 보정 후 위반내역을 함께 반환한다.
