@@ -1,0 +1,144 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --bg: #fffbf2;
+    --ink: #111111;
+    --accent: #ff477e;
+    --mint: #00ffca;
+    --yellow: #ffd166;
+    --ink-faint: rgba(17, 17, 17, 0.08);
+  }
+
+  body {
+    background-color: var(--bg);
+    color: var(--ink);
+    font-family: 'Inter', 'Pretendard', sans-serif;
+  }
+
+  ::selection {
+    background: var(--ink);
+    color: var(--bg);
+  }
+}
+
+.font-gaegu {
+  font-family: 'Gaegu', cursive, sans-serif;
+}
+
+.font-mono-neo {
+  font-family: 'Space Mono', monospace;
+}
+
+/* Neo-Brutalist Shadows */
+.shadow-neo-sm {
+  box-shadow: 2px 2px 0 var(--ink);
+}
+
+.shadow-neo {
+  box-shadow: 4px 4px 0 var(--ink);
+}
+
+.shadow-neo-md {
+  box-shadow: 6px 6px 0 var(--ink);
+}
+
+.shadow-neo-lg {
+  box-shadow: 8px 8px 0 var(--ink);
+}
+
+.shadow-neo-xl {
+  box-shadow: 10px 10px 0 var(--ink);
+}
+
+.shadow-neo-hover {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.shadow-neo-hover:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0 var(--ink);
+}
+
+.shadow-neo-hover:active {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0 var(--ink);
+}
+
+/* Neo Brutal Button */
+.btn-neo {
+  font-family: 'Space Mono', monospace;
+  font-weight: 700;
+  border: 3px solid var(--ink);
+  background: white;
+  color: var(--ink);
+  padding: 0.5rem 1rem;
+  box-shadow: 4px 4px 0 var(--ink);
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.btn-neo:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0 var(--ink);
+}
+
+.btn-neo:active {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0 var(--ink);
+}
+
+.btn-neo-accent {
+  background: var(--accent);
+  color: white;
+}
+
+.btn-neo-mint {
+  background: var(--mint);
+  color: var(--ink);
+}
+
+.btn-neo-yellow {
+  background: var(--yellow);
+  color: var(--ink);
+}
+
+.card-neo {
+  background: white;
+  border: 3px solid var(--ink);
+  box-shadow: 6px 6px 0 var(--ink);
+}
+
+.badge-neo {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.75rem;
+  padding: 0.25rem 0.6rem;
+  background: var(--mint);
+  border: 2px solid var(--ink);
+  font-weight: 800;
+  box-shadow: 2px 2px 0 var(--ink);
+}
+
+/* Custom Scrollbar for Neo Brutal style */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #fffbf2;
+  border-left: 2px solid var(--ink);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--ink);
+  border: 1px solid #fffbf2;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
+}
