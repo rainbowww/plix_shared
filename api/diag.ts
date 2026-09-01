@@ -17,14 +17,14 @@ export default async function handler(_req: VercelRequest, res: VercelResponse) 
   }
 
   try {
-    const lib = await import('./_lib/generate');
+    const lib = await import('../lib/generate');
     out.libGenerate = { ok: true, exports: Object.keys(lib) };
   } catch (e: any) {
     out.libGenerate = { ok: false, name: e?.name, message: String(e?.message).slice(0, 400) };
   }
 
   try {
-    const wf = await import('./_lib/workflow');
+    const wf = await import('../lib/workflow');
     out.libWorkflow = { ok: true, hasSteps: !!(wf as any).WORKFLOW?.steps };
   } catch (e: any) {
     out.libWorkflow = { ok: false, name: e?.name, message: String(e?.message).slice(0, 400) };
