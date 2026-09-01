@@ -644,7 +644,9 @@ export default function App() {
 
         const rawPromptData: ThumbnailPromptData = data.promptData;
     const PLAYLIST_CLAUSE = 'In the background, the word "PLAYLIST" is rendered in massive, bold futuristic typography, partially obscured by the subject\'s head and shoulders to create a cinematic depth-of-field effect.';
-    const promptData: ThumbnailPromptData = (thumbnailConfig.includePlaylistBg ?? true)
+    // 서버 워크플로우 게이트(정본 playlist_line)를 통과한 프롬프트는 클라이언트에서 중복 주입하지 않는다.
+    const serverEnforcedPlaylist = data._workflow?.passed === true || /\bPLAYLIST\b/.test(rawPromptData.prompt);
+    const promptData: ThumbnailPromptData = (!serverEnforcedPlaylist && (thumbnailConfig.includePlaylistBg ?? true))
       ? { ...rawPromptData, prompt: /No other text/i.test(rawPromptData.prompt)
           ? rawPromptData.prompt.replace(/(\. ?No other text)/i, `. ${PLAYLIST_CLAUSE} No other text`)
           : rawPromptData.prompt + ` ${PLAYLIST_CLAUSE} No other text, subtitles, or symbols.` }
