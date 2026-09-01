@@ -1,0 +1,47 @@
+{
+  "manifest_version": 3,
+  "name": "PLIX Bridge — ChatGPT / Gemini 이미지 생성 연결",
+  "version": "1.0.0",
+  "description": "PLIX 6단계 썸네일 프롬프트를 ChatGPT·Gemini 새 대화에 자동 입력하고 이미지 생성까지 실행합니다. 프롬프트 주입 로직은 ImagiPark 검증본을 재사용.",
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_title": "PLIX Bridge"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": ["tabs", "scripting", "storage"],
+  "host_permissions": [
+    "https://chatgpt.com/*",
+    "https://chat.openai.com/*",
+    "https://gemini.google.com/*",
+    "https://plix-shared-bice.vercel.app/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["https://chatgpt.com/*", "https://chat.openai.com/*"],
+      "js": ["lib/chatgpt-net-hook.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["https://chatgpt.com/*", "https://chat.openai.com/*"],
+      "js": ["lib/chatgpt-dom.js", "content/bridge.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://gemini.google.com/*"],
+      "js": ["lib/gemini-dom.js", "content/bridge.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://plix-shared-bice.vercel.app/*"],
+      "js": ["content/plix-relay.js"],
+      "run_at": "document_start"
+    }
+  ]
+}
