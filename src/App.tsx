@@ -34,6 +34,7 @@ import { Footer } from './components/Footer';
 import { Toast } from './components/Toast';
 import { downloadTextFile, formatDuration } from './utils/helpers';
 import { I18N, DEFAULT_PROVIDERS } from './utils/constants';
+import { saveProviderKeys, loadProviderKeys } from './utils/secureStore';
 
 const DEFAULT_CONCEPT: Concept = {
   genre: 'Lo-fi',
@@ -78,6 +79,21 @@ const DEFAULT_SETTINGS: AppSettings = {
 const STORAGE_KEY = 'ai_playlist_creator_state_v3';
 const SETTINGS_KEY = 'ai_playlist_creator_settings_v3';
 const SNAPSHOTS_KEY = 'ai_playlist_snapshots_v3';
+
+// 설정 저장 — API 키는 평문 localStorage 에 남기지 않는다.
+// 일반 설정만 SETTINGS_KEY 에 두고, 키는 secureStore(AES-GCM, 추출불가 기기키)로 분리 저장한다.
+function persistSettings(next: AppSettings) {
+  try {
+    const sanitized = {
+      ...next,
+      providers: (next.providers || []).map((p) => ({ ...p, apiKey: '' })),
+    };
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(sanitized));
+    void saveProviderKeys(next.providers || []);
+  } catch (e) {
+    console.error('Failed to persist settings:', e);
+  }
+}
 
 export default function App() {
   // Global Language & Modals
@@ -326,6 +342,19 @@ export default function App() {
         setSettings(parsedSettings);
         if (parsedSettings.language) setLanguage(parsedSettings.language);
       }
+
+      // 암호화 보관된 사용자 API 키 복호화 후 병합 (이 브라우저에서만 열린다)
+      void (async () => {
+        const keys = await loadProviderKeys();
+        if (keys && Object.keys(keys).length) {
+          setSettings((prev) => ({
+            ...prev,
+            providers: (prev.providers || []).map((p) =>
+              keys[p.id] ? { ...p, apiKey: keys[p.id] } : p
+            ),
+          }));
+        }
+      })();
 
       loadSnapshots();
     } catch (e) {
@@ -955,7 +984,7 @@ ${uploadKit?.tags?.join(', ') || '미생성'}
             setLanguage(newLang);
             setSettings((prev) => {
               const next = { ...prev, language: newLang };
-              localStorage.setItem(SETTINGS_KEY, JSON.stringify(next));
+              persistSettings(next);
               return next;
             });
           }}
@@ -1139,7 +1168,7 @@ ${uploadKit?.tags?.join(', ') || '미생성'}
           settings={settings}
           onChangeSettings={(updated) => {
             setSettings(updated);
-            localStorage.setItem(SETTINGS_KEY, JSON.stringify(updated));
+            persistSettings(updated);
           }}
           language={language}
         />
@@ -1159,7 +1188,7 @@ ${uploadKit?.tags?.join(', ') || '미생성'}
             onClose={() =>
               setSettings((prev) => {
                 const updated = { ...prev, showMonitor: false };
-                localStorage.setItem(SETTINGS_KEY, JSON.stringify(updated));
+                persistSettings(updated);
                 return updated;
               })
             }

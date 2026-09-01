@@ -2,101 +2,90 @@ import { GoogleGenAI, Type } from '@google/genai';
 
 export { Type };
 
-function getGenAI() {
-  const apiKey =
-    (Math.random() > 0.5
-      ? process.env.GEMINI_API_KEY
-      : process.env.GEMINI_API_KEY_2 || process.env.GEMINI_API_KEY) ||
-    process.env.API_KEY;
-  if (!apiKey) {
-    throw new Error('GEMINI_API_KEY environment variable is missing.');
+// ─────────────────────────────────────────────────────────────
+// 외장형(BYOK) 전용 — 서버는 API 키를 보유하지 않는다.
+// 모든 호출은 요청마다 브라우저가 보내온 "그 사용자의 키"로만 나간다.
+// 서버 키 폴백이 없으므로 A 고객의 실패가 다른 고객·운영자 키 소비로
+// 이어지지 않고, 사용자 키는 저장·캐시되지 않는다(요청 지역변수로만 사용).
+// ─────────────────────────────────────────────────────────────
+
+export class NoProviderKeyError extends Error {
+  constructor() {
+    super(
+      '사용 가능한 API 키가 없습니다. 우측 상단 설정(⚙)에서 본인의 API 키를 입력하고 연결 테스트 후 저장해 주세요.'
+    );
+    this.name = 'NoProviderKeyError';
   }
-  return new GoogleGenAI({
-    apiKey,
-    httpOptions: { headers: { 'User-Agent': 'aistudio-build' } },
-  });
 }
 
-const FALLBACK_MODELS = [
-  'gemini-flash-lite-latest',
-  'gemini-flash-latest',
-  'gemini-flash-lite-latest',
-  'gemini-flash-latest',
-];
+type Provider = {
+  id: string;
+  apiKey: string;
+  enabled?: boolean;
+  isPaid?: boolean;
+  kind?: string;
+  model: string;
+  baseUrl?: string;
+};
 
-let MODEL_CHAIN_CACHE: string[] = [];
+function stripFence(text: string): string {
+  let t = String(text || '').trim();
+  if (t.startsWith('```json')) t = t.slice(7);
+  else if (t.startsWith('```')) t = t.slice(3);
+  if (t.endsWith('```')) t = t.slice(0, -3);
+  return t.trim();
+}
 
-async function resolveModelChain(ai: any): Promise<string[]> {
-  if (MODEL_CHAIN_CACHE.length) return MODEL_CHAIN_CACHE;
-  try {
-    const chain: string[] = [];
-    const pager: any = await ai.models.list();
-    for await (const md of pager) {
-      const name = String(md.name || '').replace('models/', '');
-      const actions = JSON.stringify(
-        md.supportedActions || md.supportedGenerationMethods || []
-      );
-      if (!actions.includes('generateContent')) continue;
-      if (!name.startsWith('gemini')) continue;
-      if (/embedding|aqa|tts|image|vision|live|audio/.test(name)) continue;
-      chain.push(name);
-    }
-    const score = (n: string) =>
-      n.includes('flash-lite-latest')
-        ? 0
-        : n.includes('flash-latest')
-          ? 1
-          : n.includes('lite')
-            ? 2
-            : n.includes('flash')
-              ? 3
-              : n.includes('latest')
-                ? 4
-                : 5;
-    chain.sort((a, b) => score(a) - score(b));
-    if (chain.length) MODEL_CHAIN_CACHE = chain.slice(0, 6);
-  } catch (e) {
-    console.warn(
-      '[Model auto-detect] list failed, using static fallback:',
-      String(e).slice(0, 80)
-    );
+function isRateLimit(err: any): boolean {
+  const m = String((err && err.message) || err);
+  return m.includes('429') || m.includes('RESOURCE_EXHAUSTED');
+}
+
+function retryDelayMs(err: any, round: number): number {
+  const m = String((err && err.message) || err);
+  const hit = m.match(/retry in ([0-9.]+)s/i);
+  if (isRateLimit(err)) {
+    return Math.min(20000, hit ? Math.ceil(parseFloat(hit[1]) * 1000) : 12000);
   }
-  if (!MODEL_CHAIN_CACHE.length) MODEL_CHAIN_CACHE = FALLBACK_MODELS;
-  return MODEL_CHAIN_CACHE;
+  return (round + 1) * 800;
 }
 
 export async function generateContentWithRetry(params: {
   contents: any;
   config?: any;
   maxAttempts?: number;
-  fallbackGenerator?: () => any;
   providers?: any[];
 }) {
-  let lastError: any = null;
-  const maxAttempts = params.maxAttempts || 4;
   const startTime = Date.now();
+  const rounds = params.maxAttempts || 2;
 
-  const _provs = (params.providers || []).filter(
+  // 사용자 공급자만 사용한다. 무료 → 유료 순서.
+  const usable: Provider[] = (params.providers || []).filter(
     (p: any) => p && p.apiKey && p.enabled
   );
-  const _chain = [
-    ..._provs.filter((p: any) => !p.isPaid),
-    ..._provs.filter((p: any) => p.isPaid),
+  const chain = [
+    ...usable.filter((p) => !p.isPaid),
+    ...usable.filter((p) => p.isPaid),
   ];
-  if (_chain.length) {
-    const _sys = (params.config && params.config.systemInstruction) || '';
-    const _user =
-      typeof params.contents === 'string'
-        ? params.contents
-        : JSON.stringify(params.contents);
-    const _schema = params.config && params.config.responseSchema;
-    const _hint = _schema
-      ? '\n\n[출력] 설명 없이 유효한 JSON 하나만 출력하라.'
-      : '';
-    const _prompt = (_sys ? '[지침] ' + _sys + '\n\n' : '') + _user + _hint;
-    for (const p of _chain) {
+
+  if (!chain.length) throw new NoProviderKeyError();
+
+  const sys = (params.config && params.config.systemInstruction) || '';
+  const user =
+    typeof params.contents === 'string'
+      ? params.contents
+      : JSON.stringify(params.contents);
+  const schema = params.config && params.config.responseSchema;
+  const hint = schema ? '\n\n[출력] 설명 없이 유효한 JSON 하나만 출력하라.' : '';
+  const flatPrompt = (sys ? '[지침] ' + sys + '\n\n' : '') + user + hint;
+
+  let lastError: any = null;
+
+  for (let round = 0; round < rounds; round++) {
+    for (const p of chain) {
       try {
         let text = '';
+
         if (p.kind === 'gemini') {
           const gai = new GoogleGenAI({ apiKey: p.apiKey });
           const resp: any = await gai.models.generateContent({
@@ -106,36 +95,29 @@ export async function generateContentWithRetry(params: {
           });
           text = resp.text || '';
         } else {
-          const url =
-            String(p.baseUrl || '').replace(/\/+$/, '') + '/chat/completions';
-          const b: any = {
+          const url = String(p.baseUrl || '').replace(/\/+$/, '') + '/chat/completions';
+          const body: any = {
             model: p.model,
-            messages: [{ role: 'user', content: _prompt }],
-            temperature: 1.1,
+            messages: [{ role: 'user', content: flatPrompt }],
+            temperature: (params.config && params.config.temperature) ?? 1.1,
           };
-          if (_schema) b.response_format = { type: 'json_object' };
+          if (schema) body.response_format = { type: 'json_object' };
           const r = await fetch(url, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
               Authorization: 'Bearer ' + p.apiKey,
             },
-            body: JSON.stringify(b),
+            body: JSON.stringify(body),
           });
           if (!r.ok) throw new Error(p.id + ':' + r.status);
           const j: any = await r.json();
           text =
-            (j.choices &&
-              j.choices[0] &&
-              j.choices[0].message &&
-              j.choices[0].message.content) ||
+            (j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content) ||
             '';
         }
-        text = text.trim();
-        if (text.startsWith('```json')) text = text.slice(7);
-        else if (text.startsWith('```')) text = text.slice(3);
-        if (text.endsWith('```')) text = text.slice(0, -3);
-        const parsed = JSON.parse(text.trim() || '{}');
+
+        const parsed = JSON.parse(stripFence(text) || '{}');
         return {
           ...parsed,
           _telemetry: {
@@ -148,73 +130,21 @@ export async function generateContentWithRetry(params: {
         };
       } catch (e: any) {
         lastError = e;
+        // 키 값은 절대 로그에 남기지 않는다 — 공급자 id와 사유만 기록.
         console.warn(
           '[provider ' + p.id + '] failed:',
           String((e && e.message) || e).slice(0, 90)
         );
       }
     }
-  }
 
-  const ai = getGenAI();
-  const modelChain = await resolveModelChain(ai);
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    const modelToUse = modelChain[attempt % modelChain.length];
-    try {
-      const response = await ai.models.generateContent({
-        model: modelToUse,
-        contents: params.contents,
-        config: params.config,
-      });
-
-      const latencyMs = Date.now() - startTime;
-      let text = response.text || '';
-      text = text.trim();
-      if (text.startsWith('```json')) text = text.slice(7);
-      else if (text.startsWith('```')) text = text.slice(3);
-      if (text.endsWith('```')) text = text.slice(0, -3);
-      text = text.trim();
-
-      const parsed = JSON.parse(text || '{}');
-      const inTokens =
-        response.usageMetadata?.promptTokenCount ||
-        Math.ceil(JSON.stringify(params.contents).length / 3.8);
-      const outTokens =
-        response.usageMetadata?.candidatesTokenCount ||
-        Math.ceil(text.length / 3.8);
-      const costUsd = inTokens * 0.00000015 + outTokens * 0.0000006;
-
-      return {
-        ...parsed,
-        _telemetry: { model: modelToUse, inTokens, outTokens, latencyMs, costUsd },
-      };
-    } catch (err: any) {
-      lastError = err;
-      console.warn(
-        `[Gemini API] Attempt ${attempt + 1}/${maxAttempts} with model '${modelToUse}' failed:`,
-        err?.message || err
-      );
-      if (attempt < maxAttempts - 1) {
-        const emsg = String((err && err.message) || err);
-        const is429 =
-          emsg.includes('429') || emsg.includes('RESOURCE_EXHAUSTED');
-        const retryMatch = emsg.match(/retry in ([0-9.]+)s/i);
-        const delayMs = is429
-          ? Math.min(
-              20000,
-              retryMatch
-                ? Math.ceil(parseFloat(retryMatch[1]) * 1000)
-                : 12000
-            )
-          : (attempt + 1) * 800;
-        await new Promise((resolve) => setTimeout(resolve, delayMs));
-      }
+    if (round < rounds - 1) {
+      await new Promise((r) => setTimeout(r, retryDelayMs(lastError, round)));
     }
   }
 
-  MODEL_CHAIN_CACHE = [];
   throw (
     lastError ||
-    new Error('현재 AI 서버 트래픽이 많습니다. 잠시 후 다시 시도해 주세요.')
+    new Error('등록하신 API 키로 생성에 실패했습니다. 키 상태와 잔여 쿼터를 확인해 주세요.')
   );
 }

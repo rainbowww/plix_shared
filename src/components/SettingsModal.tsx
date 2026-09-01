@@ -30,6 +30,43 @@ export function SettingsModal({
   const [snapshot, setSnapshot] = React.useState<AppSettings>(settings);
   React.useEffect(() => { if (isOpen) setSnapshot(settings); }, [isOpen]);
   const handleCancel = () => { onChangeSettings(snapshot); onClose(); };
+
+  // 연결 테스트 상태 (공급자 id 별)
+  const [testState, setTestState] = React.useState<
+    Record<string, { status: 'idle' | 'running' | 'ok' | 'fail'; detail: string }>
+  >({});
+
+  const runConnectionTest = async (p: AppSettings['providers'][number]) => {
+    if (!p.apiKey) {
+      setTestState((s) => ({
+        ...s,
+        [p.id]: { status: 'fail', detail: language === 'ko' ? '키를 먼저 입력하세요.' : 'Enter a key first.' },
+      }));
+      return;
+    }
+    setTestState((s) => ({ ...s, [p.id]: { status: 'running', detail: '' } }));
+    try {
+      const res = await fetch('/api/verify-key', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey: p.apiKey, kind: p.kind, baseUrl: p.baseUrl, model: p.model }),
+      });
+      const data = await res.json().catch(() => ({}));
+      setTestState((s) => ({
+        ...s,
+        [p.id]: {
+          status: data.ok ? 'ok' : 'fail',
+          detail: data.detail || (data.ok ? 'OK' : 'FAIL'),
+        },
+      }));
+    } catch {
+      setTestState((s) => ({
+        ...s,
+        [p.id]: { status: 'fail', detail: language === 'ko' ? '서버에 연결할 수 없습니다.' : 'Cannot reach server.' },
+      }));
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -86,13 +123,16 @@ export function SettingsModal({
               <span>{language === 'ko' ? 'LLM 프로바이더 키 (무료부터 자동 폴백)' : 'LLM Provider Keys (free-first fallback)'}</span>
             </label>
             <p className="text-xs text-[#555555] font-medium mb-2">
-              {language === 'ko' ? '무료 티어를 먼저 소진하고, 유료(💳)는 체크한 것만 사용합니다. 키는 이 브라우저에만 저장됩니다.' : 'Free tiers are used first; paid (💳) only when enabled. Keys stay in this browser.'}
+              {language === 'ko'
+                ? '무료 티어를 먼저 소진하고, 유료(💳)는 체크한 것만 사용합니다. 키는 이 브라우저에 암호화 저장되며 서버에 보관되지 않습니다. 입력 후 [테스트]로 연결을 확인하세요.'
+                : 'Free tiers are used first; paid (💳) only when enabled. Keys are encrypted in this browser and never stored on the server. Use [Test] to verify.'}
             </p>
             <div className="space-y-2">
               {settings.providers.map((p, idx) => {
                 const keyUrl = API_KEY_LINKS[p.id];
                 return (
-                <div key={p.id} className="flex items-center gap-2 p-2 rounded-lg bg-[#fffbf2] border-2 border-[#111111] shadow-[2px_2px_0_#111111]">
+                <div key={p.id} className="p-2 rounded-lg bg-[#fffbf2] border-2 border-[#111111] shadow-[2px_2px_0_#111111]">
+                  <div className="flex items-center gap-2">
                   <input
                     type="checkbox"
                     checked={p.enabled}
@@ -128,6 +168,30 @@ export function SettingsModal({
                     >
                       <ExternalLink className="w-3.5 h-3.5" strokeWidth={2.5} />
                     </a>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => runConnectionTest(p)}
+                    disabled={testState[p.id]?.status === 'running'}
+                    title={language === 'ko' ? '연결 테스트' : 'Test connection'}
+                    className="shrink-0 px-2 py-1.5 rounded-md bg-[#ffd166] hover:bg-[#ffc233] border border-[#111111] text-[#111111] text-[11px] font-extrabold shadow-[1px_1px_0_#111111] active:translate-x-[1px] active:translate-y-[1px] transition-colors disabled:opacity-50 cursor-pointer"
+                  >
+                    {testState[p.id]?.status === 'running'
+                      ? '...'
+                      : language === 'ko'
+                        ? '테스트'
+                        : 'Test'}
+                  </button>
+                  </div>
+                  {testState[p.id] && testState[p.id].status !== 'running' && (
+                    <div
+                      className={`mt-1.5 pl-6 text-[11px] font-bold ${
+                        testState[p.id].status === 'ok' ? 'text-[#0a7d5a]' : 'text-[#c1121f]'
+                      }`}
+                    >
+                      {testState[p.id].status === 'ok' ? '✅ ' : '⚠️ '}
+                      {testState[p.id].detail}
+                    </div>
                   )}
                 </div>
               );})}
